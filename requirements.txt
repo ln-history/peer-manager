@@ -1,0 +1,4 @@
+pyln-client
+psycopg[binary]
+python-dotenv
+prometheus-client

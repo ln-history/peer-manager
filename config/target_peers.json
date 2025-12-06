@@ -1,0 +1,10 @@
+{
+  "alice": [
+    {
+      "id": "node_id",
+      "address": "ip_address:port",
+      "note": "Bob"
+    }
+  ],
+  "bob": []
+}
