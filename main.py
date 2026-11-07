@@ -10,10 +10,10 @@ from pyln.client import LightningRpc
 from prometheus_client import start_http_server, Gauge, Counter
 
 # --- CONFIG ---
-NODES: dict[str, str] = {
-    "alice": "/rpc/alice/lightning-rpc",
-    "bob":   "/rpc/bob/lightning-rpc",
-}
+# Every directory under RPC_ROOT is one collector: /rpc/<name>/lightning-rpc. The node list used to
+# be hardcoded (alice, bob), so mounting a third node (charlie) silently did nothing and it never
+# got reconnected. Discovering it from the mounts makes the compose file the single source of truth.
+RPC_ROOT = os.getenv("RPC_ROOT", "/rpc")
 POSTGRES_URI = os.getenv("POSTGRES_URI")
 TARGET_PEERS_FILE = "/config/target_peers.json"
 POLL_INTERVAL = 10
@@ -196,13 +196,32 @@ def sync_peers(node_name: str, rpc_path: str) -> None:
                 logger.warning(f"[{node_name}] Reconnect failed: {e}")
 
 
+def discover_nodes(root: str) -> dict[str, str]:
+    """Map each subdirectory of root to its lightning-rpc socket path, sorted by name."""
+    try:
+        names = sorted(e.name for e in os.scandir(root) if e.is_dir())
+    except FileNotFoundError:
+        return {}
+    return {name: os.path.join(root, name, "lightning-rpc") for name in names}
+
+
 def main() -> None:
     start_http_server(METRICS_PORT)
     logger.info(f"Metrics server started on port {METRICS_PORT}")
-    logger.info("Peer Manager Started")
+
+    nodes = discover_nodes(RPC_ROOT)
+    if not nodes:
+        logger.error(f"No nodes found under {RPC_ROOT}; mount each node's data dir as {RPC_ROOT}/<name>")
+        sys.exit(1)
+
+    targets = load_targets()
+    for name in nodes:
+        if name not in targets:
+            logger.warning(f"[{name}] No entry in {TARGET_PEERS_FILE}; it will be tracked but never reconnected")
+    logger.info(f"Peer Manager Started for nodes: {', '.join(nodes)}")
 
     while True:
-        for name, rpc_path in NODES.items():
+        for name, rpc_path in nodes.items():
             sync_peers(name, rpc_path)
         time.sleep(POLL_INTERVAL)
 

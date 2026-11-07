@@ -50,7 +50,7 @@ Everything lives in `main.py` — there are no modules or packages. The main loo
 | Source | Purpose |
 |--------|---------|
 | `POSTGRES_URI` env var | PostgreSQL connection string |
-| `NODES` dict in `main.py` | CLN node names and RPC socket paths (`/rpc/<name>/lightning-rpc`) |
+| Mounts under `RPC_ROOT` (default `/rpc`) | One collector per subdirectory: `/rpc/<name>/lightning-rpc`. Mount a node there and it is managed; no code change |
 | `config/target_peers.json` | Per-node list of peers to auto-reconnect to (keyed by node name) |
 
 The `.env` file is loaded implicitly by `python-dotenv` (see `requirements.txt`); add `POSTGRES_URI` there for local development.
